@@ -38,6 +38,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/buddies").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/buddies").permitAll()
+                .requestMatchers(HttpMethod.HEAD, "/api/buddies").permitAll()
                 .requestMatchers("/api/payment/**").permitAll()
                 .requestMatchers("/api/leads/**").hasRole("ADMIN")
                 .requestMatchers("/api/buddies/**").hasRole("ADMIN")
@@ -61,10 +62,15 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "http://localhost:5173",
                 "https://*.netlify.app",
+                "http://*.netlify.app",
                 "https://*.musclefocus.se",
+                "http://*.musclefocus.se",
                 "https://*.musclefocusfitness.com",
+                "http://*.musclefocusfitness.com",
                 "https://musclefocusfitness.com",
-                "https://*.onrender.com"
+                "http://musclefocusfitness.com",
+                "https://*.onrender.com",
+                "http://*.onrender.com"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Cache-Control"));
