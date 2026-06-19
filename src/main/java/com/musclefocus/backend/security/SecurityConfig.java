@@ -66,7 +66,7 @@ public class SecurityConfig {
                 "https://musclefocusfitness.com",
                 "https://*.onrender.com"
         ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Cache-Control"));
         configuration.setExposedHeaders(Collections.singletonList("Authorization"));
         configuration.setAllowCredentials(true);
