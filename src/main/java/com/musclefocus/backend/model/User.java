@@ -34,6 +34,12 @@ public class User {
     @Column(nullable = false)
     private String role; // e.g., "ROLE_CLIENT"
 
+    @Column
+    private String resetToken;
+
+    @Column
+    private LocalDateTime resetTokenExpiry;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 

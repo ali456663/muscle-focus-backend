@@ -26,6 +26,7 @@ public class AuthController {
     private final EmailNotificationService emailNotificationService;
     private final String adminUsername;
     private final String adminPassword;
+    private final String frontendUrl;
 
     public AuthController(
             JwtTokenProvider tokenProvider,
@@ -33,13 +34,15 @@ public class AuthController {
             PasswordEncoder passwordEncoder,
             EmailNotificationService emailNotificationService,
             @Value("${musclefocus.admin.username}") String adminUsername,
-            @Value("${musclefocus.admin.password}") String adminPassword) {
+            @Value("${musclefocus.admin.password}") String adminPassword,
+            @Value("${app.frontend.url}") String frontendUrl) {
         this.tokenProvider = tokenProvider;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailNotificationService = emailNotificationService;
         this.adminUsername = adminUsername;
         this.adminPassword = adminPassword;
+        this.frontendUrl = frontendUrl;
     }
 
     @PostMapping("/login")
@@ -101,6 +104,12 @@ public class AuthController {
         }
 
         User user = userOpt.get();
+        String token = java.util.UUID.randomUUID().toString();
+        user.setResetToken(token);
+        user.setResetTokenExpiry(java.time.LocalDateTime.now().plusHours(24));
+        userRepository.save(user);
+
+        String resetLink = frontendUrl + "/reset-password?token=" + token;
 
         // Create a mock Lead object to represent the password reset request
         Lead resetRequestLead = Lead.builder()
@@ -111,7 +120,10 @@ public class AuthController {
                 .age(30)
                 .city("Password Reset")
                 .trainingWish("LÖSENORDSÅTERSTÄLLNING")
-                .message("Klienten " + user.getFullName() + " har klickat på 'Glömt lösenord' och begärt att få sitt lösenord återställt. Vänligen kontakta klienten på tel: " + user.getPhoneNumber() + " eller e-post: " + user.getEmail() + " för att hjälpa dem.")
+                .message("Klienten " + user.getFullName() + " har begärt att få återställa sitt lösenord.\n\n"
+                        + "För att kunden ska kunna välja sitt nya lösenord själv, vidarebefordra denna länk till kunden (via mejl, SMS eller WhatsApp):\n\n"
+                        + resetLink + "\n\n"
+                        + "Länken är giltig i 24 timmar.")
                 .status("NEW")
                 .paymentStatus("NOT_REQUIRED")
                 .amountPaid(0.0)
@@ -120,5 +132,32 @@ public class AuthController {
         emailNotificationService.sendEmailNotification(resetRequestLead);
 
         return ResponseEntity.ok("En begäran om återställning har skickats till din tränare Ali. Vi kommer kontakta dig inom kort.");
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody java.util.Map<String, String> payload) {
+        String token = payload.get("token");
+        String password = payload.get("password");
+
+        if (token == null || token.trim().isEmpty() || password == null || password.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Token och nytt lösenord krävs");
+        }
+
+        Optional<User> userOpt = userRepository.findByResetToken(token);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Återställningskoden är ogiltig.");
+        }
+
+        User user = userOpt.get();
+        if (user.getResetTokenExpiry() == null || user.getResetTokenExpiry().isBefore(java.time.LocalDateTime.now())) {
+            return ResponseEntity.badRequest().body("Återställningslänken har tyvärr gått ut (giltig i 24 timmar).");
+        }
+
+        user.setPassword(passwordEncoder.encode(password));
+        user.setResetToken(null);
+        user.setResetTokenExpiry(null);
+        userRepository.save(user);
+
+        return ResponseEntity.ok("Ditt lösenord har återställts. Du kan nu logga in med ditt nya lösenord.");
     }
 }
