@@ -4,8 +4,10 @@ import com.musclefocus.backend.dto.LoginRequest;
 import com.musclefocus.backend.dto.LoginResponse;
 import com.musclefocus.backend.dto.RegisterRequest;
 import com.musclefocus.backend.model.User;
+import com.musclefocus.backend.model.Lead;
 import com.musclefocus.backend.repository.UserRepository;
 import com.musclefocus.backend.security.JwtTokenProvider;
+import com.musclefocus.backend.service.EmailNotificationService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,7 @@ public class AuthController {
     private final JwtTokenProvider tokenProvider;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailNotificationService emailNotificationService;
     private final String adminUsername;
     private final String adminPassword;
 
@@ -28,11 +31,13 @@ public class AuthController {
             JwtTokenProvider tokenProvider,
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
+            EmailNotificationService emailNotificationService,
             @Value("${musclefocus.admin.username}") String adminUsername,
             @Value("${musclefocus.admin.password}") String adminPassword) {
         this.tokenProvider = tokenProvider;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.emailNotificationService = emailNotificationService;
         this.adminUsername = adminUsername;
         this.adminPassword = adminPassword;
     }
@@ -81,5 +86,39 @@ public class AuthController {
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body("Felaktig e-post eller lösenord");
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody java.util.Map<String, String> payload) {
+        String email = payload.get("email");
+        if (email == null || email.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("E-postadress krävs");
+        }
+
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Denna e-postadress är inte registrerad.");
+        }
+
+        User user = userOpt.get();
+
+        // Create a mock Lead object to represent the password reset request
+        Lead resetRequestLead = Lead.builder()
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phoneNumber(user.getPhoneNumber())
+                .gender("Kvinna/Man")
+                .age(30)
+                .city("Password Reset")
+                .trainingWish("LÖSENORDSÅTERSTÄLLNING")
+                .message("Klienten " + user.getFullName() + " har klickat på 'Glömt lösenord' och begärt att få sitt lösenord återställt. Vänligen kontakta klienten på tel: " + user.getPhoneNumber() + " eller e-post: " + user.getEmail() + " för att hjälpa dem.")
+                .status("NEW")
+                .paymentStatus("NOT_REQUIRED")
+                .amountPaid(0.0)
+                .build();
+
+        emailNotificationService.sendEmailNotification(resetRequestLead);
+
+        return ResponseEntity.ok("En begäran om återställning har skickats till din tränare Ali. Vi kommer kontakta dig inom kort.");
     }
 }
