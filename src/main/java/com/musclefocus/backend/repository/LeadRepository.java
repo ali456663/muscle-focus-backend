@@ -10,4 +10,5 @@ import java.util.List;
 public interface LeadRepository extends JpaRepository<Lead, Long> {
     List<Lead> findAllByOrderByCreatedAtDesc();
     List<Lead> findByStatusOrderByCreatedAtDesc(String status);
+    List<Lead> findByEmailOrderByCreatedAtDesc(String email);
 }

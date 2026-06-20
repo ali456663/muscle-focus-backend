@@ -1,5 +1,7 @@
 package com.musclefocus.backend.security;
 
+import com.musclefocus.backend.repository.UserRepository;
+import com.musclefocus.backend.model.User;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,18 +17,22 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Optional;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
     private final String adminUsername;
+    private final UserRepository userRepository;
 
     public JwtAuthenticationFilter(
             JwtTokenProvider tokenProvider,
-            @Value("${musclefocus.admin.username}") String adminUsername) {
+            @Value("${musclefocus.admin.username}") String adminUsername,
+            UserRepository userRepository) {
         this.tokenProvider = tokenProvider;
         this.adminUsername = adminUsername;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -45,6 +51,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+                } else {
+                    Optional<User> userOpt = userRepository.findByEmail(username);
+                    if (userOpt.isPresent()) {
+                        User user = userOpt.get();
+                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                user.getEmail(), null, Collections.singletonList(new SimpleGrantedAuthority(user.getRole()))
+                        );
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
                 }
             }
         } catch (Exception ex) {
